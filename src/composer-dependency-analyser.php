@@ -6,6 +6,9 @@ use Phpcq\PluginApi\Version10\Configuration\PluginConfigurationBuilderInterface;
 use Phpcq\PluginApi\Version10\Configuration\PluginConfigurationInterface;
 use Phpcq\PluginApi\Version10\DiagnosticsPluginInterface;
 use Phpcq\PluginApi\Version10\EnvironmentInterface;
+use Phpcq\PluginApi\Version10\Output\OutputTransformerFactoryInterface;
+use Phpcq\PluginApi\Version10\Output\OutputTransformerInterface;
+use Phpcq\PluginApi\Version10\Report\TaskReportInterface;
 
 return new class implements DiagnosticsPluginInterface {
     /**
@@ -83,6 +86,58 @@ return new class implements DiagnosticsPluginInterface {
         PluginConfigurationInterface $config,
         EnvironmentInterface $environment
     ): iterable {
-        return [];
+        $projectRoot  = $environment->getProjectConfiguration()->getProjectRootPath();
+        $composerJson = $config->getString('composer_json');
+        $configFile   = $config->has('config') ? $config->getString('config') : null;
+
+        $arguments = [
+            $environment->getInstalledDir() . '/vendor/bin/composer-dependency-analyser',
+            '--format=junit',
+            '--show-all-usages',
+            '--composer-json=' . $composerJson,
+        ];
+        if (null !== $configFile) {
+            $arguments[] = '--config=' . $configFile;
+        }
+        foreach (self::BOOL_OPTIONS as $option => [$flag]) {
+            if ($config->has($option) && $config->getBool($option)) {
+                $arguments[] = $flag;
+            }
+        }
+
+        yield $environment
+            ->getTaskFactory()
+            ->buildPhpProcess($this->getName(), $arguments)
+            ->withWorkingDirectory($projectRoot)
+            ->withOutputTransformer($this->createOutputTransformerFactory($projectRoot, $composerJson, $configFile))
+            ->build();
+    }
+
+    private function createOutputTransformerFactory(
+        string $projectRoot,
+        string $composerJson,
+        ?string $configFile
+    ): OutputTransformerFactoryInterface {
+        return new class implements OutputTransformerFactoryInterface {
+            public function createFor(TaskReportInterface $report): OutputTransformerInterface
+            {
+                return new class ($report) implements OutputTransformerInterface {
+                    public function __construct(private TaskReportInterface $report)
+                    {
+                    }
+
+                    public function write(string $data, int $channel): void
+                    {
+                    }
+
+                    public function finish(int $exitCode): void
+                    {
+                        $this->report->close(
+                            0 === $exitCode ? TaskReportInterface::STATUS_PASSED : TaskReportInterface::STATUS_FAILED
+                        );
+                    }
+                };
+            }
+        };
     }
 };

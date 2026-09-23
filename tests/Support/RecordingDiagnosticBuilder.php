@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Phpcq\ComposerDependencyAnalyserPluginTest\Support;
 
+use LogicException;
 use Phpcq\PluginApi\Version10\Report\DiagnosticBuilderInterface;
 use Phpcq\PluginApi\Version10\Report\FileDiagnosticBuilderInterface;
 use Phpcq\PluginApi\Version10\Report\TaskReportInterface;
@@ -32,9 +33,7 @@ final class RecordingDiagnosticBuilder implements DiagnosticBuilderInterface
 
     public function withExternalInfoUrl(string $url): self
     {
-        $this->diagnostic->externalInfoUrl = $url;
-
-        return $this;
+        throw new LogicException(sprintf('External info URLs are not expected from this plugin (got: "%s").', $url));
     }
 
     public function forClass(string $className): self
@@ -46,9 +45,7 @@ final class RecordingDiagnosticBuilder implements DiagnosticBuilderInterface
 
     public function withCategory(string $category): self
     {
-        $this->diagnostic->category = $category;
-
-        return $this;
+        throw new LogicException(sprintf('Categories are not expected from this plugin (got: "%s").', $category));
     }
 
     public function end(): TaskReportInterface

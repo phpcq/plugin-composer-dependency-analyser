@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Phpcq\ComposerDependencyAnalyserPluginTest\Support;
 
+use LogicException;
 use Phpcq\PluginApi\Version10\Report\AttachmentBuilderInterface;
 use Phpcq\PluginApi\Version10\Report\TaskReportInterface;
 
@@ -21,9 +22,7 @@ final class RecordingAttachmentBuilder implements AttachmentBuilderInterface
 
     public function fromFile(string $file): self
     {
-        $this->content = (string) file_get_contents($file);
-
-        return $this;
+        throw new LogicException(sprintf('File attachments are not expected from this plugin (got: "%s").', $file));
     }
 
     public function fromString(string $buffer): self

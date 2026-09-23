@@ -10,10 +10,6 @@ final class RecordedDiagnostic
 
     public ?string $className = null;
 
-    public ?string $externalInfoUrl = null;
-
-    public ?string $category = null;
-
     /** @var list<array{file: string, line: int|null}> */
     public array $files = [];
 

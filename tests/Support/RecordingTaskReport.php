@@ -21,14 +21,11 @@ final class RecordingTaskReport implements TaskReportInterface
     /** @var list<string> */
     public array $closedWith = [];
 
-    /** @var array<string, string> */
-    public array $metadata = [];
-
     public function addMetadata(string $name, string $value): self
     {
-        $this->metadata[$name] = $value;
-
-        return $this;
+        throw new LogicException(
+            sprintf('Metadata is not expected from this plugin (got: "%s" => "%s").', $name, $value)
+        );
     }
 
     public function addDiagnostic(string $severity, string $message): DiagnosticBuilderInterface

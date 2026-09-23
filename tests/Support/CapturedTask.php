@@ -22,5 +22,8 @@ final class CapturedTask
 
     public ?string $workingDirectory = null;
 
+    /** @var array<string, string>|null */
+    public ?array $env = null;
+
     public ?OutputTransformerFactoryInterface $transformerFactory = null;
 }

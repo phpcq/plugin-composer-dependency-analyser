@@ -47,7 +47,7 @@ final class OutputTransformerTest extends TestCase
         $report = $this->transform(
             $this->fixture('report-empty.xml'),
             0,
-            "\e[37mUsing config\e[0m /project/composer-dependency-analyser.php\n"
+            "Using config /project/composer-dependency-analyser.php\n"
         );
 
         self::assertSame([], $report->diagnostics);
@@ -56,33 +56,33 @@ final class OutputTransformerTest extends TestCase
     }
 
     /**
-     * Real stderr output of composer-dependency-analyser 1.8.4 (paths shortened to /project).
+     * Real stderr output of composer-dependency-analyser 1.8.4 with NO_COLOR set (paths shortened to /project).
      *
      * @return iterable<string, array{string, string}>
      */
     public static function provideToolErrors(): iterable
     {
         yield 'unknown option' => [
-            "\n\e[31mUnknown option --foo, see --help\e[0m\n\n",
+            "\nUnknown option --foo, see --help\n\n",
             'Unknown option --foo, see --help',
         ];
         yield 'missing config file' => [
-            "\n\e[31mInvalid config path given, /project/nope.php is not a file.\e[0m\n\n",
+            "\nInvalid config path given, /project/nope.php is not a file.\n\n",
             'Invalid config path given, /project/nope.php is not a file.',
         ];
         yield 'broken config file' => [
-            "\e[37mUsing config\e[0m /project/broken.php\n\n\e[31mError while loading configuration from"
+            "Using config /project/broken.php\n\nError while loading configuration from"
             . " '/project/broken.php':\n\nParseError in /project/broken.php:1\n > syntax error, unexpected"
-            . " identifier \"error\"\e[0m\n\n",
+            . " identifier \"error\"\n\n",
             "Error while loading configuration from '/project/broken.php':\nParseError in /project/broken.php:1\n"
             . ' > syntax error, unexpected identifier "error"',
         ];
         yield 'missing composer.json' => [
-            "\n\e[31mFile composer.json not found, '/project/composer.json' is not a file.\e[0m\n\n",
+            "\nFile composer.json not found, '/project/composer.json' is not a file.\n\n",
             "File composer.json not found, '/project/composer.json' is not a file.",
         ];
         yield 'missing autoloader' => [
-            "\n\e[31mCannot find composer's autoload file, expected at '/project/vendor/autoload.php'\e[0m\n\n",
+            "\nCannot find composer's autoload file, expected at '/project/vendor/autoload.php'\n\n",
             "Cannot find composer's autoload file, expected at '/project/vendor/autoload.php'",
         ];
         yield 'no stderr at all' => [
@@ -109,7 +109,6 @@ final class OutputTransformerTest extends TestCase
             ],
             $report->attachments
         );
-        self::assertStringNotContainsString("\e", $report->attachments['error.log']['content']);
     }
 
     /** @return iterable<string, array{string, int}> */

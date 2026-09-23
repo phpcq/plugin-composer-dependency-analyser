@@ -77,6 +77,13 @@ trait PluginTestTrait
                 return $taskBuilder;
             }
         );
+        $taskBuilder->method('withEnv')->willReturnCallback(
+            static function (array $env) use ($captured, $taskBuilder): PhpTaskBuilderInterface {
+                $captured->env = $env;
+
+                return $taskBuilder;
+            }
+        );
         $taskBuilder->method('withOutputTransformer')->willReturnCallback(
             static function (OutputTransformerFactoryInterface $factory) use (
                 $captured,

@@ -110,6 +110,7 @@ return new class implements DiagnosticsPluginInterface {
         yield $environment
             ->getTaskFactory()
             ->buildPhpProcess($this->getName(), $arguments)
+            ->withEnv(['NO_COLOR' => '1'])
             ->withWorkingDirectory($projectRoot)
             ->withOutputTransformer($this->createOutputTransformerFactory($projectRoot, $composerJson, $configFile))
             ->build();
@@ -254,9 +255,8 @@ return new class implements DiagnosticsPluginInterface {
 
                     private function reportToolFailure(): void
                     {
-                        $stderr = $this->stripAnsi($this->stderr);
-                        $lines  = array_filter(
-                            array_map('rtrim', explode("\n", $stderr)),
+                        $lines = array_filter(
+                            array_map('rtrim', explode("\n", $this->stderr)),
                             static fn (string $line): bool => '' !== trim($line)
                                 && !str_starts_with($line, 'Using config ')
                         );
@@ -272,7 +272,7 @@ return new class implements DiagnosticsPluginInterface {
                             ->end();
                         $this->report
                             ->addAttachment('error.log')
-                            ->fromString($stderr)
+                            ->fromString($this->stderr)
                             ->setMimeType('text/plain')
                             ->end();
                     }
@@ -462,11 +462,6 @@ return new class implements DiagnosticsPluginInterface {
                         return is_file($this->projectRoot . '/composer-dependency-analyser.php')
                             ? 'composer-dependency-analyser.php'
                             : null;
-                    }
-
-                    private function stripAnsi(string $text): string
-                    {
-                        return preg_replace('/\e\[[0-9;]*m/', '', $text) ?? $text;
                     }
                 };
             }

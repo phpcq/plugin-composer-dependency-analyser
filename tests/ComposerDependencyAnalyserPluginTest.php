@@ -79,6 +79,7 @@ final class ComposerDependencyAnalyserPluginTest extends TestCase
     {
         $builder = $this->createStub(PhpTaskBuilderInterface::class);
         $builder->method('withWorkingDirectory')->willReturnSelf();
+        $builder->method('withEnv')->willReturnSelf();
         $builder->method('withOutputTransformer')->willReturnSelf();
         $builder->method('build')->willReturn($this->createStub(TaskInterface::class));
 
@@ -108,6 +109,13 @@ final class ComposerDependencyAnalyserPluginTest extends TestCase
         $captured = $this->runCreateDiagnosticTasks($this->createConfig(), '/some/project');
 
         self::assertSame('/some/project', $captured->workingDirectory);
+    }
+
+    public function testDisablesColoredOutput(): void
+    {
+        $captured = $this->runCreateDiagnosticTasks($this->createConfig());
+
+        self::assertSame(['NO_COLOR' => '1'], $captured->env);
     }
 
     public function testAttachesOutputTransformer(): void

@@ -32,6 +32,8 @@ final class RecordingDiagnosticBuilder implements DiagnosticBuilderInterface
 
     public function withExternalInfoUrl(string $url): self
     {
+        $this->diagnostic->externalInfoUrl = $url;
+
         return $this;
     }
 
@@ -44,6 +46,8 @@ final class RecordingDiagnosticBuilder implements DiagnosticBuilderInterface
 
     public function withCategory(string $category): self
     {
+        $this->diagnostic->category = $category;
+
         return $this;
     }
 

@@ -19,6 +19,11 @@ final class RecordingFileDiagnosticBuilder implements FileDiagnosticBuilderInter
     public function forRange(int $line, ?int $column = null, ?int $endline = null, ?int $endcolumn = null): self
     {
         $this->diagnostic->files[$this->index]['line'] = $line;
+        $this->diagnostic->ranges[$this->index]        = [
+            'column'    => $column,
+            'endLine'   => $endline,
+            'endColumn' => $endcolumn,
+        ];
 
         return $this;
     }

@@ -78,7 +78,10 @@ trait PluginTestTrait
             }
         );
         $taskBuilder->method('withOutputTransformer')->willReturnCallback(
-            static function (OutputTransformerFactoryInterface $factory) use ($captured, $taskBuilder): PhpTaskBuilderInterface {
+            static function (OutputTransformerFactoryInterface $factory) use (
+                $captured,
+                $taskBuilder
+            ): PhpTaskBuilderInterface {
                 $captured->transformerFactory = $factory;
 
                 return $taskBuilder;
@@ -88,7 +91,13 @@ trait PluginTestTrait
 
         $taskFactory = $this->createStub(TaskFactoryInterface::class);
         $taskFactory->method('buildPhpProcess')->willReturnCallback(
-            static function (string $toolName, array $arguments) use ($captured, $taskBuilder): PhpTaskBuilderInterface {
+            static function (
+                string $toolName,
+                array $arguments
+            ) use (
+                $captured,
+                $taskBuilder
+            ): PhpTaskBuilderInterface {
                 $captured->toolName = $toolName;
                 $captured->command  = array_values($arguments);
 

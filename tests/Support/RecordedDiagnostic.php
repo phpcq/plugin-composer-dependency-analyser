@@ -10,8 +10,15 @@ final class RecordedDiagnostic
 
     public ?string $className = null;
 
+    public ?string $externalInfoUrl = null;
+
+    public ?string $category = null;
+
     /** @var list<array{file: string, line: int|null}> */
     public array $files = [];
+
+    /** @var array<int, array{column: int|null, endLine: int|null, endColumn: int|null}> */
+    public array $ranges = [];
 
     public bool $ended = false;
 

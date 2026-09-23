@@ -21,8 +21,13 @@ final class RecordingTaskReport implements TaskReportInterface
     /** @var list<string> */
     public array $closedWith = [];
 
+    /** @var array<string, string> */
+    public array $metadata = [];
+
     public function addMetadata(string $name, string $value): self
     {
+        $this->metadata[$name] = $value;
+
         return $this;
     }
 
@@ -41,7 +46,7 @@ final class RecordingTaskReport implements TaskReportInterface
 
     public function addDiff(string $name): DiffBuilderInterface
     {
-        throw new LogicException('Diffs are not expected from this plugin.');
+        throw new LogicException(sprintf('Diffs are not expected from this plugin (requested: "%s").', $name));
     }
 
     public function close(string $status): void

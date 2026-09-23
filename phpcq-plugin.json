@@ -1,0 +1,16 @@
+{
+  "name": "composer-dependency-analyser",
+  "type": "php-file",
+  "url": "src/composer-dependency-analyser.php",
+  "api-version": "1.0.0",
+  "requirements": {
+    "php": {
+      "php": "^8.1",
+      "ext-dom": "*",
+      "ext-libxml": "*"
+    },
+    "composer": {
+      "shipmonk/composer-dependency-analyser": "^1.0"
+    }
+  }
+}

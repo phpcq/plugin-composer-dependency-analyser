@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="unknown classes" failures="1">
+    <testcase name="Unknown\Thing">
+      <failure>src/Service.php:13</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="unknown functions" failures="1">
+    <testcase name="unknown_function_xyz">
+      <failure>src/Other.php:8</failure>
+      <failure>src/Other.php:9</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="shadow dependencies" failures="3">
+    <testcase name="ext-dom">
+      <failure message="DOMDocument">src/Other.php:11</failure>
+    </testcase>
+    <testcase name="ext-mbstring">
+      <failure message="mb_strlen">src/Other.php:10</failure>
+    </testcase>
+    <testcase name="psr/http-message">
+      <failure message="Psr\Http\Message\RequestInterface">src/Service.php:11</failure>
+      <failure message="Psr\Http\Message\UriInterface">src/Other.php:13</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="dev dependencies in production code" failures="1">
+    <testcase name="psr/container">
+      <failure message="Psr\Container\ContainerInterface">src/Other.php:12</failure>
+      <failure message="Psr\Container\ContainerInterface">src/Service.php:9</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="prod dependencies used only in dev paths" failures="1">
+    <testcase name="psr/clock"></testcase>
+  </testsuite>
+  <testsuite name="unused dependencies" failures="1">
+    <testcase name="psr/http-factory"></testcase>
+  </testsuite>
+  <testsuite name="unused-ignore" failures="2">
+    <testcase name="shadow-dependency">
+      <failure>'shadow-dependency' was ignored for package 'foo/bar', but it was never applied.</failure>
+    </testcase>
+    <testcase name="Nope\Nope">
+      <failure>Unknown class 'Nope\Nope' was ignored, but it was never applied.</failure>
+    </testcase>
+  </testsuite>
+  <!-- showing all failure usages -->
+</testsuites>

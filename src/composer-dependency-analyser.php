@@ -9,6 +9,7 @@ use Phpcq\PluginApi\Version10\EnvironmentInterface;
 use Phpcq\PluginApi\Version10\Output\OutputInterface;
 use Phpcq\PluginApi\Version10\Output\OutputTransformerFactoryInterface;
 use Phpcq\PluginApi\Version10\Output\OutputTransformerInterface;
+use Phpcq\PluginApi\Version10\Report\DiagnosticBuilderInterface;
 use Phpcq\PluginApi\Version10\Report\TaskReportInterface;
 
 return new class implements DiagnosticsPluginInterface {
@@ -135,6 +136,52 @@ return new class implements DiagnosticsPluginInterface {
                     $this->composerJson,
                     $this->configFile
                 ) implements OutputTransformerInterface {
+                    /**
+                     * JUnit test suite name => [error type, severity].
+                     *
+                     * @var array<string, array{0: string, 1: string}>
+                     */
+                    private const SUITES = [
+                        'unknown classes'                          => [
+                            'unknown-class',
+                            TaskReportInterface::SEVERITY_MAJOR,
+                        ],
+                        'unknown functions'                        => [
+                            'unknown-function',
+                            TaskReportInterface::SEVERITY_MAJOR,
+                        ],
+                        'shadow dependencies'                      => [
+                            'shadow-dependency',
+                            TaskReportInterface::SEVERITY_MAJOR,
+                        ],
+                        'dev dependencies in production code'      => [
+                            'dev-dependency-in-prod',
+                            TaskReportInterface::SEVERITY_MAJOR,
+                        ],
+                        'prod dependencies used only in dev paths' => [
+                            'prod-dependency-only-in-dev',
+                            TaskReportInterface::SEVERITY_MINOR,
+                        ],
+                        'unused dependencies'                      => [
+                            'unused-dependency',
+                            TaskReportInterface::SEVERITY_MINOR,
+                        ],
+                        'unused-ignore'                            => [
+                            'unused-ignore',
+                            TaskReportInterface::SEVERITY_MINOR,
+                        ],
+                    ];
+
+                    /** Error types whose package is listed in composer.json. */
+                    private const LISTED_PACKAGE_TYPES = [
+                        'dev-dependency-in-prod',
+                        'prod-dependency-only-in-dev',
+                        'unused-dependency',
+                    ];
+
+                    /** Lazily loaded composer.json contents; '' when not readable. */
+                    private ?string $composerJsonContent = null;
+
                     private string $stdout = '';
 
                     private string $stderr = '';
@@ -232,7 +279,189 @@ return new class implements DiagnosticsPluginInterface {
 
                     private function processDocument(DOMElement $root): void
                     {
-                        // Implemented in the next step of the plan (diagnostic mapping).
+                        foreach ($root->childNodes as $suite) {
+                            if (!$suite instanceof DOMElement || 'testsuite' !== $suite->nodeName) {
+                                continue;
+                            }
+                            foreach ($suite->childNodes as $testCase) {
+                                if (!$testCase instanceof DOMElement || 'testcase' !== $testCase->nodeName) {
+                                    continue;
+                                }
+                                $this->processTestCase($suite->getAttribute('name'), $testCase);
+                            }
+                        }
+                    }
+
+                    private function processTestCase(string $suite, DOMElement $testCase): void
+                    {
+                        $name    = $testCase->getAttribute('name');
+                        $symbols = [];
+                        $texts   = [];
+                        foreach ($testCase->childNodes as $failure) {
+                            if (!$failure instanceof DOMElement || 'failure' !== $failure->nodeName) {
+                                continue;
+                            }
+                            if ($failure->hasAttribute('message')) {
+                                $symbols[] = $failure->getAttribute('message');
+                            }
+                            $texts[] = trim($failure->textContent);
+                        }
+                        $symbols = array_values(array_unique($symbols));
+
+                        [$type, $severity] = self::SUITES[$suite] ?? [$suite, TaskReportInterface::SEVERITY_MAJOR];
+
+                        $builder = $this->report
+                            ->addDiagnostic($severity, $this->buildMessage($type, $suite, $name, $symbols, $texts))
+                            ->fromSource($type);
+                        if ('unknown-class' === $type) {
+                            $builder->forClass($name);
+                        }
+
+                        $this->addFile(
+                            $builder,
+                            $this->relativePath($this->composerJson),
+                            in_array($type, self::LISTED_PACKAGE_TYPES, true) ? $this->findPackageLine($name) : null
+                        );
+
+                        if ('unused-ignore' === $type) {
+                            $configFile = $this->configFileForReport();
+                            if (null !== $configFile) {
+                                $this->addFile($builder, $configFile, null);
+                            }
+                        } else {
+                            foreach ($this->parseLocations($texts) as [$file, $line]) {
+                                $this->addFile($builder, $file, $line);
+                            }
+                        }
+
+                        $builder->end();
+                    }
+
+                    /**
+                     * @param list<string> $symbols
+                     * @param list<string> $texts
+                     */
+                    private function buildMessage(
+                        string $type,
+                        string $suite,
+                        string $name,
+                        array $symbols,
+                        array $texts
+                    ): string {
+                        $usedSymbols = [] === $symbols
+                            ? ''
+                            : sprintf(' (used symbols: "%s")', implode('", "', $symbols));
+
+                        return match ($type) {
+                            'unknown-class' => sprintf(
+                                'Unknown class "%s" (unable to autoload it, so it cannot be checked).',
+                                $name
+                            ),
+                            'unknown-function' => sprintf(
+                                'Unknown function "%s" (unable to autoload it, so it cannot be checked).',
+                                $name
+                            ),
+                            'shadow-dependency' => sprintf(
+                                'Shadow dependency "%s" is used but not listed in composer.json%s.',
+                                $name,
+                                $usedSymbols
+                            ),
+                            'dev-dependency-in-prod' => sprintf(
+                                'Dev dependency "%s" is used in production code, it should probably be moved to'
+                                . ' "require"%s.',
+                                $name,
+                                $usedSymbols
+                            ),
+                            'prod-dependency-only-in-dev' => sprintf(
+                                'Prod dependency "%s" is used only in dev paths, it should probably be moved to'
+                                . ' "require-dev".',
+                                $name
+                            ),
+                            'unused-dependency' => sprintf(
+                                'Unused dependency "%s" is listed in composer.json, but no usage was found.',
+                                $name
+                            ),
+                            'unused-ignore' => [] === $texts
+                                ? sprintf('Ignored error "%s" was never applied.', $name)
+                                : implode("\n", $texts),
+                            default => sprintf('%s: "%s"', $suite, $name)
+                                . ([] === $texts ? '' : ' - ' . implode('; ', $texts)),
+                        };
+                    }
+
+                    private function addFile(DiagnosticBuilderInterface $builder, string $file, ?int $line): void
+                    {
+                        $fileBuilder = $builder->forFile($file);
+                        if (null !== $line) {
+                            $fileBuilder->forRange($line);
+                        }
+                        $fileBuilder->end();
+                    }
+
+                    /**
+                     * Parses "<path>:<line>" failure texts, unique by location, in order of appearance.
+                     *
+                     * @param list<string> $texts
+                     *
+                     * @return list<array{0: string, 1: int}>
+                     */
+                    private function parseLocations(array $texts): array
+                    {
+                        $locations = [];
+                        foreach ($texts as $text) {
+                            if (1 !== preg_match('/^(.+):(\d+)$/', $text, $matches)) {
+                                continue;
+                            }
+                            $file                            = $this->relativePath($matches[1]);
+                            $line                            = (int) $matches[2];
+                            $locations[$file . ':' . $line] = [$file, $line];
+                        }
+
+                        return array_values($locations);
+                    }
+
+                    private function relativePath(string $path): string
+                    {
+                        $prefix = $this->projectRoot . '/';
+
+                        return str_starts_with($path, $prefix) ? substr($path, strlen($prefix)) : $path;
+                    }
+
+                    private function findPackageLine(string $package): ?int
+                    {
+                        $content = $this->composerJsonContent();
+                        // [ \t]* instead of \s* so that the match never starts on a previous line.
+                        $pattern = '/^[ \t]*"' . preg_quote($package, '/') . '"\s*:/m';
+                        if ('' === $content || 1 !== preg_match($pattern, $content, $matches, PREG_OFFSET_CAPTURE)) {
+                            return null;
+                        }
+
+                        return substr_count($content, "\n", 0, $matches[0][1]) + 1;
+                    }
+
+                    private function composerJsonContent(): string
+                    {
+                        if (null === $this->composerJsonContent) {
+                            $path = str_starts_with($this->composerJson, '/')
+                                ? $this->composerJson
+                                : $this->projectRoot . '/' . $this->composerJson;
+                            $content = is_file($path) && is_readable($path) ? file_get_contents($path) : false;
+
+                            $this->composerJsonContent = false === $content ? '' : $content;
+                        }
+
+                        return $this->composerJsonContent;
+                    }
+
+                    private function configFileForReport(): ?string
+                    {
+                        if (null !== $this->configFile) {
+                            return $this->relativePath($this->configFile);
+                        }
+
+                        return is_file($this->projectRoot . '/composer-dependency-analyser.php')
+                            ? 'composer-dependency-analyser.php'
+                            : null;
                     }
 
                     private function stripAnsi(string $text): string

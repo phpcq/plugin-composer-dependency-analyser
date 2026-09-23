@@ -1,5 +1,4 @@
 vendor
 .phpcq
 .phpcq.yaml
-.phpunit.cache
 .phpunit.result.cache

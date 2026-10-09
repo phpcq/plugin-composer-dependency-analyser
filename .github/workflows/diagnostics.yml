@@ -35,39 +35,39 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
 
-      - name: Cache composer cache directory
-        uses: actions/cache@v6
-        env:
-          cache-name: composer-cache-dir-${{ matrix.php }}
-        with:
-          path: ~/.cache/composer
-          key: ${{ runner.os }}-build-${{ env.cache-name }}
-
-      - name: Install composer dependencies
-        run: composer install
-
+      # Caches are restored where their step runs, so they have to come before the steps that fill them.
       - name: Cache vendor directory
         uses: actions/cache@v6
         env:
           cache-name: vendor-${{ matrix.php }}
         with:
           path: vendor
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('composer.lock') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
 
-      - name: Install phpcq toolchain
-        run: ./vendor/bin/phpcq ${{ matrix.phpcq_install }} -v
-
+      # Holds the installed plugins and tools, their installed.json and the GnuPG keyring of the trusted keys.
+      # The build output and the local repository are recreated on each run and must not be restored.
       - name: Cache phpcq directory
         uses: actions/cache@v6
         env:
           cache-name: phpcq-${{ matrix.php }}
         with:
-          path: .phpcq
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/.phpcq.lock') }}
+          path: |
+            .phpcq
+            !.phpcq/build
+            !.phpcq/repository
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('.phpcq.lock', '.phpcq.yaml.dist') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
+
+      # Also builds the local phpcq repository, see bin/build-local-repository.php.
+      - name: Install composer dependencies
+        run: composer install
+
+      # Reinstalls the local plugin if its checksum differs from the restored installation.
+      - name: Install phpcq toolchain
+        run: ./vendor/bin/phpcq ${{ matrix.phpcq_install }} -v
 
       - name: Run tests
         run: ./vendor/bin/phpcq run -v ${{ matrix.output }}

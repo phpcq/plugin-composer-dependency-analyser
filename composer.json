@@ -26,5 +26,13 @@
     "psr-4": {
       "Phpcq\\ComposerDependencyAnalyserPluginTest\\": "tests"
     }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@php bin/build-local-repository.php"
+    ],
+    "post-update-cmd": [
+      "@php bin/build-local-repository.php"
+    ]
   }
 }

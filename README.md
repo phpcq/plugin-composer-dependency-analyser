@@ -59,3 +59,10 @@ tasks:
     config:
       config: composer-dependency-analyser.php
 ```
+
+## Development
+
+`composer install` and `composer update` run `bin/build-local-repository.php`, which writes a phpcq repository
+containing the plugin of the current checkout to `.phpcq/repository/repository.json`. `.phpcq.yaml.dist` lists this
+repository first, so `phpcq update` installs the local plugin and the project analyses itself with it. After changing
+the plugin, run `composer install` (or the script directly) followed by `phpcq update` to pick up the changes.
